@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Portal</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .auth-container {
+            background: var(--bg-card);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-link {
+            color: var(--color-patient);
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .text-link:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .dash-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .tab:hover,
+        .tab.active {
+            background: rgba(0, 119, 182, 0.1);
+            color: var(--color-patient);
+        }
+
+        .h-card {
+            background: var(--bg-main);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="fade-in">
+        <div id="auth-view" class="auth-container">
+            <h2 class="text-center" id="auth-title" style="margin-bottom: 2rem;">🩺 Patient Login</h2>
+
+            <div id="login-form">
+                <div class="form-group"><label>User ID</label><input type="text" id="login-userid"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="login-pwd"></div>
+                <button class="btn btn-patient" onclick="doLogin()">Login</button>
+                <p class="text-center" style="margin-top: 1.5rem; font-size: 0.9rem;">
+                    Don't have an account? <span class="text-link" onclick="toggleAuth('register')">Register here</span>
+                </p>
+                <div class="text-center" style="margin-top: 1rem;"><button class="btn"
+                        style="background:#e2e8f0; color:#333;" onclick="location.href='/'">Back to Roles</button></div>
+            </div>
+
+            <div id="register-form" class="hidden">
+                <div class="form-group"><label>Full Name</label><input type="text" id="reg-name"></div>
+                <div class="flex-row">
+                    <div class="form-group" style="flex:1;"><label>Date of Birth (YYYY-MM-DD)</label><input type="date"
+                            id="reg-dob"></div>
+                    <div class="form-group" style="flex:1;"><label>Gender</label><select id="reg-gender">
+                            <option>Male</option>
+                            <option>Female</option>
+                            <option>Other</option>
+                        </select></div>
+                </div>
+                <div class="flex-row">
+                    <div class="form-group" style="flex:1;"><label>Contact No</label><input type="text"
+                            id="reg-contact"></div>
+                    <div class="form-group" style="flex:1;"><label>Email</label><input type="email" id="reg-email">
+                    </div>
+                </div>
+                <div class="flex-row">
+                    <div class="form-group" style="flex:1;"><label>Blood Group</label><input type="text" id="reg-blood">
+                    </div>
+                    <div class="form-group" style="flex:1;"><label>Allergies</label><input type="text"
+                            id="reg-allergies"></div>
+                </div>
+                <div class="form-group"><label>Full Address</label><input type="text" id="reg-address"></div>
+                <div class="form-group"><label>User ID</label><input type="text" id="reg-userid"></div>
+                <div class="flex-row">
+                    <div class="form-group" style="flex:1;"><label>Password</label><input type="password" id="reg-pwd">
+                    </div>
+                    <div class="form-group" style="flex:1;"><label>Confirm Password</label><input type="password"
+                            id="reg-cpwd"></div>
+                </div>
+                <button class="btn btn-patient" onclick="doRegister()">Register & Send OTP</button>
+                <p class="text-center" style="margin-top: 1.5rem; font-size: 0.9rem;">
+                    Already have an account? <span class="text-link" onclick="toggleAuth('login')">Login here</span>
+                </p>
+            </div>
+
+            <div id="otp-form" class="hidden">
+                <h3 class="text-center" style="margin-bottom: 1rem;">Verify OTP</h3>
+                <p class="text-center" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Enter
+                    the 6-digit OTP sent to your email.</p>
+                <div class="form-group"><input type="text" id="verify-otp" placeholder="Enter OTP"
+                        style="text-align:center; font-size: 1.5rem; letter-spacing: 5px;"></div>
+                <button class="btn btn-patient" onclick="verifyOTP()">Verify & Register</button>
+            </div>
+        </div>
+
+        <div id="dashboard-view" class="dash-container hidden">
+            <div class="auth-container" style="max-width: 100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h2>🩺 Welcome, <span id="dash-name">Patient</span></h2>
+                    <button class="btn" style="background:#e2e8f0; color:#333; width: auto;"
+                        onclick="logout()">Logout</button>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('emergency')">Emergency Search</div>
+                    <div class="tab" onclick="switchTab('medical')">Medical History</div>
+                    <div class="tab" onclick="switchTab('family')">Family Profile</div>
+                    <div class="tab" onclick="switchTab('account')">Account</div>
+                </div>
+
+                <div id="tab-emergency" style="padding: 1rem; text-align:center;">
+                    <h3>Find Nearest Hospital</h3>
+                    <div style="display:flex; gap:1rem; justify-content:center; margin-top:2rem;">
+                        <input type="text" id="srch-treatment" placeholder="E.g. Accident & Trauma"
+                            style="padding:0.75rem; width:250px; border-radius:8px; border:1px solid var(--border);">
+                        <select id="srch-sort"
+                            style="padding:0.75rem; border-radius:8px; border:1px solid var(--border);">
+                            <option>Nearest First</option>
+                            <option>Lowest Cost</option>
+                            <option>Highest Rating</option>
+                        </select>
+                        <button class="btn btn-patient" style="width:150px;" onclick="searchHospitals()">Search</button>
+                    </div>
+                    <div id="search-results"
+                        style="margin-top: 2rem; max-height:400px; overflow-y:auto; text-align:left;"></div>
+                </div>
+
+                <div id="tab-medical" class="hidden" style="padding: 1rem;">
+                    <h3>Medical History</h3>
+                    <div id="history-results" style="margin-top: 1rem;"></div>
+                </div>
+
+                <div id="tab-family" class="hidden" style="padding: 1rem;">
+                    <h3>Family Members</h3>
+                    <div
+                        style="display:flex; gap:1rem; margin-top:1.5rem; border-bottom:1px solid var(--border); padding-bottom:1.5rem;">
+                        <input type="text" id="fam-name" placeholder="Name" class="form-group"
+                            style="margin:0; padding:0.75rem;">
+                        <input type="text" id="fam-rel" placeholder="Relation (e.g. Brother)" class="form-group"
+                            style="margin:0; padding:0.75rem;">
+                        <input type="date" id="fam-dob" placeholder="DOB" class="form-group"
+                            style="margin:0; padding:0.75rem;">
+                        <button class="btn btn-patient" style="width: auto;" onclick="addFamily()">Add Member</button>
+                    </div>
+                    <div id="family-results" style="margin-top: 1rem; display:flex; flex-wrap:wrap; gap:1rem;"></div>
+                </div>
+
+                <div id="tab-account" class="hidden" style="padding: 1rem; max-width:500px; margin:0 auto;">
+                    <h3>Account Settings</h3>
+                    <div class="form-group" style="margin-top:1.5rem;"><label>Current Password (Required to
+                            update)</label><input type="password" id="acc-pwd"></div>
+                    <div class="form-group"><label>New User ID (Optional)</label><input type="text" id="acc-newuid">
+                    </div>
+                    <div class="form-group"><label>New Password (Optional)</label><input type="password"
+                            id="acc-newpwd"></div>
+                    <button class="btn btn-patient" onclick="updateAccount()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/patient.js"></script>
+</body>
+
+</html>
