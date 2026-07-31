@@ -33,7 +33,7 @@ class OfflineAdmitRequest(BaseModel):
     treatment_id: int
 
 class DischargeRequest(BaseModel):
-    booking_id: int
+    booking_id: str
     treatment_id: int
 
 class InviteDriverRequest(BaseModel):
@@ -310,12 +310,23 @@ def fix_db():
         cur = conn.cursor()
         try:
             cur.execute("ALTER TABLE bookings ADD COLUMN patient_name VARCHAR(150);")
+        except mysql.connector.Error as err:
+            if err.errno != 1060:
+                pass
+        
+        try:
+            # Upgrade booking_id to VARCHAR(255)
+            cur.execute("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME = 'bookings' AND TABLE_NAME = 'reviews' LIMIT 1")
+            fk = cur.fetchone()
+            if fk:
+                cur.execute(f"ALTER TABLE reviews DROP FOREIGN KEY {fk[0]};")
+            
+            cur.execute("ALTER TABLE reviews MODIFY booking_id VARCHAR(255);")
+            cur.execute("ALTER TABLE bookings MODIFY booking_id VARCHAR(255);")
+            cur.execute("ALTER TABLE reviews ADD CONSTRAINT fk_reviews_booking FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE;")
             conn.commit()
         except mysql.connector.Error as err:
-            if err.errno == 1060:  # Code for Duplicate column name
-                pass
-            else:
-                raise err
+            pass
         conn.close()
         return {"message": "Database schema updated successfully!"}
     except Exception as e:
