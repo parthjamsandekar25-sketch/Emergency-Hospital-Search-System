@@ -30,6 +30,8 @@ temp_admin_regs = {}
 class OfflineAdmitRequest(BaseModel):
     hospital_id: int
     email: str
+    name: str
+    contact: str
     treatment_id: int
 
 class DischargeRequest(BaseModel):
@@ -152,8 +154,10 @@ def get_patients(hospital_id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor(dictionary=True)
-        query = """SELECT b.booking_id, b.patient_email, b.patient_name, b.treatment_id, b.status 
+        query = """SELECT b.booking_id, b.patient_email, b.patient_name, b.treatment_id, b.status, 
+                   COALESCE(b.patient_contact, p.contact_number) as contact_number
                    FROM bookings b 
+                   LEFT JOIN patients p ON b.patient_email = p.email
                    WHERE b.hospital_id=%s"""
         cur.execute(query, (hospital_id,))
         patients = cur.fetchall()
@@ -165,10 +169,15 @@ def get_patients(hospital_id: int):
 @router.post("/offline-admit")
 def offline_admit(req: OfflineAdmitRequest):
     try:
+        import datetime
         conn = get_db_connection()
         cur = conn.cursor()
-        query = "INSERT INTO bookings (patient_email, hospital_id, treatment_id, status) VALUES (%s, %s, %s, 'Admitted')"
-        cur.execute(query, (req.email, req.hospital_id, req.treatment_id))
+        now = datetime.datetime.now()
+        clean_name = "".join([c for c in req.name if c.isalpha()]).lower()
+        booking_id = f"{clean_name}offline{now.strftime('%y%m%d%H%M%S')}"
+
+        query = "INSERT INTO bookings (booking_id, patient_email, patient_name, patient_contact, hospital_id, treatment_id, status) VALUES (%s, %s, %s, %s, %s, %s, 'Admitted')"
+        cur.execute(query, (booking_id, req.email, req.name, req.contact, req.hospital_id, req.treatment_id))
         
         upd = "UPDATE treatments SET available_beds = available_beds - 1 WHERE treatment_id = %s"
         cur.execute(upd, (req.treatment_id,))
