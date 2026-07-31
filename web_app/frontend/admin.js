@@ -143,8 +143,8 @@ async function discharge(booking_id, t_id) {
             loadPatients();
             const mobile = prompt("Patient discharged. Enter their 10-digit WhatsApp number to send the automated Firebase/Google Form feedback system. Leave blank to skip:");
             if (mobile && mobile.length >= 10) {
-                const link = `https://docs.google.com/forms/d/e/1FAIpQLSc8N7TxAGsEnuE5SbP0i8iZLx2h--Eke9tHiGZF5jAuyey9Og/viewform?usp=pp_url&entry.349431785=${activeAdmin.hospital_id}&entry.935733863=${booking_id}`;
-                const url = `https://wa.me/91${mobile}?text=Thank%20you%20for%20choosing%20${activeAdmin.name.replace(' ', '%20')}!%20Please%20rate%20us:%20${encodeURIComponent(link)}`;
+                const link = `https://docs.google.com/forms/d/e/1FAIpQLSc8N7TxAGsEnuE5SbP0i8iZLx2h--Eke9tHiGZF5jAuyey9Og/viewform?usp=pp_url&entry.349431785=${encodeURIComponent(activeAdmin.name)}&entry.935733863=${booking_id}`;
+                const url = `https://wa.me/91${mobile}?text=Thank%20you%20for%20choosing%20${encodeURIComponent(activeAdmin.name)}!%20Please%20rate%20us:%20${encodeURIComponent(link)}`;
                 window.location.href = url;
             }
         }
