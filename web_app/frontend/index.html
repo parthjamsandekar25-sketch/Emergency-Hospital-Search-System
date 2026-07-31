@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management Portal</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Role Selector view by default -->
+        <div class="role-selector-container fade-in">
+            <div class="header-icon">🏥</div>
+            <h1>Hospital Management Portal</h1>
+            <p class="subtitle">Select your role to continue</p>
+
+            <div class="cards-container">
+                <!-- Patient Card -->
+                <div class="card" onclick="openPortal('patient')">
+                    <div class="card-icon">🩺</div>
+                    <h3>Patient Portal</h3>
+                    <p>Register, login & manage your medical records</p>
+                    <button class="btn btn-patient">Open Patient</button>
+                </div>
+
+                <!-- Driver Card -->
+                <div class="card" onclick="openPortal('driver')">
+                    <div class="card-icon">🚑</div>
+                    <h3>Drivers Portal</h3>
+                    <p>Register as ambulance driver & manage availability</p>
+                    <button class="btn btn-driver">Open Drivers</button>
+                </div>
+
+                <!-- Admin Card -->
+                <div class="card" onclick="openPortal('admin')">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Admin Portal</h3>
+                    <p>Hospital administration & management</p>
+                    <button class="btn btn-admin">Open Admin</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html>
