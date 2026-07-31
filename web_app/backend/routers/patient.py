@@ -192,11 +192,16 @@ def emergency_search(req: SearchRequest):
 @router.post("/book-bed")
 def book_bed(req: BookBedRequest):
     try:
+        import datetime
         conn = get_db_connection()
         cur = conn.cursor(dictionary=True)
         
-        query_b = "INSERT INTO bookings (patient_email, patient_name, hospital_id, treatment_id, status) VALUES (%s, %s, %s, %s, %s)"
-        cur.execute(query_b, (req.email, req.name, req.hospital_id, req.treatment_id, "Admitted"))
+        now = datetime.datetime.now()
+        clean_name = "".join([c for c in req.name if c.isalpha()]).lower()
+        booking_id = f"{clean_name}{now.strftime('%y%m%d%H%M%S')}"
+
+        query_b = "INSERT INTO bookings (booking_id, patient_email, patient_name, hospital_id, treatment_id, status) VALUES (%s, %s, %s, %s, %s, %s)"
+        cur.execute(query_b, (booking_id, req.email, req.name, req.hospital_id, req.treatment_id, "Admitted"))
         
         query_u = "UPDATE treatments SET available_beds = available_beds - 1 WHERE treatment_id = %s"
         cur.execute(query_u, (req.treatment_id,))
