@@ -337,3 +337,23 @@ def fix_db():
         return {"message": "Database schema updated successfully!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/debug-db")
+def debug_db():
+    try:
+        import os
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SHOW CREATE TABLE bookings")
+        bookings = cur.fetchone()
+        cur.execute("SHOW CREATE TABLE reviews")
+        reviews = cur.fetchone()
+        conn.close()
+        return {
+            "DB_HOST": os.getenv("DB_HOST"),
+            "DB_NAME": os.getenv("DB_NAME"),
+            "bookings_schema": bookings[1] if bookings else "None",
+            "reviews_schema": reviews[1] if reviews else "None"
+        }
+    except Exception as e:
+        return {"error": str(e)}
