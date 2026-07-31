@@ -115,7 +115,7 @@ async function loadPatients() {
                         <p style="font-size:0.9rem;">Status: <strong style="color:${p.status === 'Admitted' ? '#eab308' : '#10b981'}">${p.status}</strong></p>
                     </div>
                     ${p.status === 'Admitted' ?
-                        `<button class="btn btn-admin" style="width:auto;" onclick="discharge(${p.booking_id}, ${p.treatment_id})">Discharge Patient</button>` : ''}
+                        `<button class="btn btn-admin" style="width:auto;" onclick="discharge('${p.booking_id}', ${p.treatment_id})">Discharge Patient</button>` : ''}
                 </div>`;
             });
             container.innerHTML = html;
@@ -156,12 +156,9 @@ async function discharge(booking_id, t_id) {
             loadPatients();
             const mobile = prompt("Patient discharged. Enter their 10-digit WhatsApp number to send the automated Firebase/Google Form feedback system. Leave blank to skip:");
             if (mobile && mobile.length >= 10) {
-                // IMPORTANT: Replace the form link with actual Google Form.
-                // It must have entry fields for email, booking_id, hospital_id mapped carefully.
-                // Format: &entry.xxxx=val
                 const link = `https://docs.google.com/forms/d/e/1FAIpQLSe_XXXX_mock_form/viewform?usp=pp_url&entry.101010=${activeAdmin.hospital_id}&entry.202020=${booking_id}`;
                 const url = `https://wa.me/91${mobile}?text=Thank%20you%20for%20choosing%20${activeAdmin.name.replace(' ', '%20')}!%20Please%20rate%20us:%20${encodeURIComponent(link)}`;
-                window.open(url, '_blank');
+                window.location.href = url;
             }
         }
     } catch (e) { }
