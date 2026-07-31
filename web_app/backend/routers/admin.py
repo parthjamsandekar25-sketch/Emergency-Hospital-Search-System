@@ -305,10 +305,17 @@ def delete_profile(hospital_id: int):
 @router.get("/fix-db")
 def fix_db():
     try:
+        import mysql.connector
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150);")
-        conn.commit()
+        try:
+            cur.execute("ALTER TABLE bookings ADD COLUMN patient_name VARCHAR(150);")
+            conn.commit()
+        except mysql.connector.Error as err:
+            if err.errno == 1060:  # Code for Duplicate column name
+                pass
+            else:
+                raise err
         conn.close()
         return {"message": "Database schema updated successfully!"}
     except Exception as e:
