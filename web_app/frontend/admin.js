@@ -9,7 +9,9 @@ function toggleAuth(view) {
         document.getElementById('auth-title').innerText = "⚙️ Register Hospital";
     }
 }
+
 let activeAdmin = null;
+
 async function doLogin() {
     const userid = document.getElementById('login-userid').value;
     const pwd = document.getElementById('login-pwd').value;
@@ -32,7 +34,9 @@ async function doLogin() {
         } else alert(data.detail || "Login failed");
     } catch (e) { alert("Error connecting"); }
 }
+
 let pendingAdminEmail = null;
+
 async function init_doRegister() {
     const req = {
         name: document.getElementById('reg-name').value,
@@ -46,6 +50,7 @@ async function init_doRegister() {
     };
     if (!req.email || !req.name || !req.userid || !req.pwd) return alert("Fill all required fields");
     if (req.pwd !== document.getElementById('reg-cpwd').value) return alert("Passwords mismatch");
+
     try {
         const res = await fetch('/api/admin/init-register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req)
@@ -60,6 +65,7 @@ async function init_doRegister() {
         }
     } catch (e) { alert("Error connecting"); }
 }
+
 async function verifyAdminOTP() {
     const otp = document.getElementById('reg-otp').value;
     if (!otp) return alert("Enter OTP");
@@ -78,17 +84,20 @@ async function verifyAdminOTP() {
         }
     } catch (e) { alert("Error"); }
 }
+
 function switchTab(tabId) {
     ['patients', 'fleet', 'management', 'account'].forEach(t => document.getElementById('tab-' + t).classList.add('hidden'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.remove('hidden');
     if (event) event.target.classList.add('active');
 }
+
 function logout() {
     activeAdmin = null;
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('auth-view').classList.remove('hidden');
 }
+
 // PATIENT MANAGEMENT
 async function loadPatients() {
     if (!activeAdmin) return;
@@ -106,24 +115,41 @@ async function loadPatients() {
                         <p style="font-size:0.9rem;">Status: <strong style="color:${p.status === 'Admitted' ? '#eab308' : '#10b981'}">${p.status}</strong></p>
                     </div>
                     ${p.status === 'Admitted' ?
-                        `<button class="btn btn-admin" style="width:auto;" onclick="discharge('${p.booking_id}', ${p.treatment_id})">Discharge Patient</button>` : ''}
+                        `<button class="btn btn-admin" style="width:auto;" onclick="discharge('${p.booking_id}', ${p.treatment_id}, '${p.contact_number || ''}')">Discharge Patient</button>` : ''}
                 </div>`;
             });
             container.innerHTML = html;
         } else container.innerHTML = `<p style="color:var(--text-muted)">No patients history found.</p>`;
     } catch (e) { }
 }
+
 function openOfflineAdmission() {
     document.getElementById('offline-form').classList.toggle('hidden');
 }
+
 async function submitOfflineAdmit() {
     const email = document.getElementById('off-email').value;
-    const t_id = document.getElementById('off-treatment').value;
-    if (!email || !t_id) return alert("Fill data");
+    const name = document.getElementById('off-name').value;
+    const contact = document.getElementById('off-contact').value;
+    const treatment = document.getElementById('off-treatment').value;
+    if (!email || !treatment || !name || !contact) return alert("Fill all fields");
+
+    let t_id = treatment;
+    if (isNaN(t_id)) {
+        // try finding treatment by name in global available_treatments
+        const found = available_treatments.find(t => t.treatment_name.toLowerCase() === treatment.toLowerCase());
+        if (found) {
+            t_id = found.treatment_id;
+        } else {
+            return alert("Invalid treatment name");
+        }
+    }
+
     try {
         const res = await fetch('/api/admin/offline-admit', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hospital_id: activeAdmin.hospital_id, email, treatment_id: parseInt(t_id) })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hospital_id: activeAdmin.hospital_id, email, name, contact, treatment_id: parseInt(t_id) })
         });
         if (res.ok) {
             alert("Offline Admission Recorded");
@@ -132,7 +158,8 @@ async function submitOfflineAdmit() {
         } else alert("Failed to admit");
     } catch (e) { }
 }
-async function discharge(booking_id, t_id) {
+
+async function discharge(booking_id, t_id, contact_number) {
     if (!confirm("Discharge patient? This will free up the bed.")) return;
     try {
         const res = await fetch('/api/admin/discharge', {
@@ -141,15 +168,19 @@ async function discharge(booking_id, t_id) {
         });
         if (res.ok) {
             loadPatients();
-            const mobile = prompt("Patient discharged. Enter their 10-digit WhatsApp number to send the automated Firebase/Google Form feedback system. Leave blank to skip:");
-            if (mobile && mobile.length >= 10) {
-                const link = `https://docs.google.com/forms/d/e/1FAIpQLSc8N7TxAGsEnuE5SbP0i8iZLx2h--Eke9tHiGZF5jAuyey9Og/viewform?usp=pp_url&entry.349431785=${encodeURIComponent(activeAdmin.name)}&entry.935733863=${booking_id}`;
-                const url = `https://wa.me/91${mobile}?text=Thank%20you%20for%20choosing%20${encodeURIComponent(activeAdmin.name)}!%20Please%20rate%20us:%20${encodeURIComponent(link)}`;
-                window.location.href = url;
+            if (!contact_number || contact_number === 'null' || contact_number.length < 10) {
+                alert("This patient has no registered contact number! Ask them for it if you need a rating.");
+                return;
             }
+            const mobile = contact_number.replace(/\D/g, '').slice(-10); // get last 10 digits
+            if (mobile.length < 10) return alert("Contact number is too short manually.");
+            const link = `https://docs.google.com/forms/d/e/1FAIpQLSc8N7TxAGsEnuE5SbP0i8iZLx2h--Eke9tHiGZF5jAuyey9Og/viewform?usp=pp_url&entry.349431785=${booking_id}&entry.935733863=${encodeURIComponent(activeAdmin.name)}`;
+            const url = `https://wa.me/91${mobile}?text=Thank%20you%20for%20choosing%20${encodeURIComponent(activeAdmin.name)}!%20Please%20rate%20us:%20${encodeURIComponent(link)}`;
+            window.location.href = url;
         }
-    } catch (e) { }
+    } catch (e) { console.error(e); }
 }
+
 // FLEET MANAGEMENT
 async function loadFleet() {
     if (!activeAdmin) return;
@@ -172,6 +203,7 @@ async function loadFleet() {
         } else container.innerHTML = `<p style="color:var(--text-muted)">No drivers affiliated yet.</p>`;
     } catch (e) { }
 }
+
 async function searchAndAffiliateDriver() {
     const uid = document.getElementById('search-driver-uid').value;
     if (!uid) return alert('Enter driver UID');
@@ -186,6 +218,8 @@ async function searchAndAffiliateDriver() {
         } else alert(data.detail || "Error");
     } catch (e) { }
 }
+
+
 // MANAGEMENT
 async function loadTreatments() {
     if (!activeAdmin) return;
@@ -215,11 +249,13 @@ async function loadTreatments() {
         }
     } catch (e) { }
 }
+
 async function addTreatment() {
     const name = document.getElementById('treat-name').value;
     const cost = document.getElementById('treat-cost').value;
     const beds = document.getElementById('treat-beds').value;
     if (!name || !cost || !beds) return alert("Fill all treatment fields");
+
     try {
         const res = await fetch('/api/admin/treatments', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -231,6 +267,7 @@ async function addTreatment() {
         } else alert("Failed to add treatment");
     } catch (e) { }
 }
+
 async function updateTreatment(t_id) {
     const cost = document.getElementById(`upd-cost-${t_id}`).value;
     const beds = document.getElementById(`upd-beds-${t_id}`).value;
@@ -245,6 +282,7 @@ async function updateTreatment(t_id) {
         } else alert("Failed to update");
     } catch (e) { }
 }
+
 // ACCOUNT
 function loadAccountSettings() {
     if (!activeAdmin) return;
@@ -253,11 +291,13 @@ function loadAccountSettings() {
     document.getElementById('acc-lat').value = activeAdmin.latitude || '';
     document.getElementById('acc-lon').value = activeAdmin.longitude || '';
 }
+
 async function updateHospitalAccount() {
     const address = document.getElementById('acc-address').value;
     const contact = document.getElementById('acc-contact').value;
     const lat = document.getElementById('acc-lat').value;
     const lon = document.getElementById('acc-lon').value;
+
     try {
         const res = await fetch('/api/admin/profile', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -279,6 +319,7 @@ async function updateHospitalAccount() {
         } else alert(data.detail || "Update failed");
     } catch (e) { }
 }
+
 async function deleteHospitalAccount() {
     if (!confirm("Are you absolutely sure you want to delete this hospital account? This action cannot be undone.")) return;
     try {
