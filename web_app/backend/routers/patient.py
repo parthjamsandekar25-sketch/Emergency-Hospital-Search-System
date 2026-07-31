@@ -185,7 +185,7 @@ def emergency_search(req: SearchRequest):
         elif "Rating" in req.sort_by:
             final_results.sort(key=lambda x: x['avg_rating'], reverse=True)
             
-        return {"hospitals": results}
+        return {"results": final_results[:10]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
