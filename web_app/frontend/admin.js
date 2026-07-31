@@ -9,9 +9,7 @@ function toggleAuth(view) {
         document.getElementById('auth-title').innerText = "⚙️ Register Hospital";
     }
 }
-
 let activeAdmin = null;
-
 async function doLogin() {
     const userid = document.getElementById('login-userid').value;
     const pwd = document.getElementById('login-pwd').value;
@@ -34,9 +32,7 @@ async function doLogin() {
         } else alert(data.detail || "Login failed");
     } catch (e) { alert("Error connecting"); }
 }
-
 let pendingAdminEmail = null;
-
 async function init_doRegister() {
     const req = {
         name: document.getElementById('reg-name').value,
@@ -50,7 +46,6 @@ async function init_doRegister() {
     };
     if (!req.email || !req.name || !req.userid || !req.pwd) return alert("Fill all required fields");
     if (req.pwd !== document.getElementById('reg-cpwd').value) return alert("Passwords mismatch");
-
     try {
         const res = await fetch('/api/admin/init-register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req)
@@ -65,7 +60,6 @@ async function init_doRegister() {
         }
     } catch (e) { alert("Error connecting"); }
 }
-
 async function verifyAdminOTP() {
     const otp = document.getElementById('reg-otp').value;
     if (!otp) return alert("Enter OTP");
@@ -84,20 +78,17 @@ async function verifyAdminOTP() {
         }
     } catch (e) { alert("Error"); }
 }
-
 function switchTab(tabId) {
     ['patients', 'fleet', 'management', 'account'].forEach(t => document.getElementById('tab-' + t).classList.add('hidden'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.remove('hidden');
     if (event) event.target.classList.add('active');
 }
-
 function logout() {
     activeAdmin = null;
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('auth-view').classList.remove('hidden');
 }
-
 // PATIENT MANAGEMENT
 async function loadPatients() {
     if (!activeAdmin) return;
@@ -122,18 +113,15 @@ async function loadPatients() {
         } else container.innerHTML = `<p style="color:var(--text-muted)">No patients history found.</p>`;
     } catch (e) { }
 }
-
 function openOfflineAdmission() {
     document.getElementById('offline-form').classList.toggle('hidden');
 }
-
 async function submitOfflineAdmit() {
     const email = document.getElementById('off-email').value;
     const name = document.getElementById('off-name').value;
     const contact = document.getElementById('off-contact').value;
     const treatment = document.getElementById('off-treatment').value;
     if (!email || !treatment || !name || !contact) return alert("Fill all fields");
-
     let t_id = treatment;
     if (isNaN(t_id)) {
         // try finding treatment by name in global available_treatments
@@ -144,7 +132,6 @@ async function submitOfflineAdmit() {
             return alert("Invalid treatment name");
         }
     }
-
     try {
         const res = await fetch('/api/admin/offline-admit', {
             method: 'POST',
@@ -158,7 +145,6 @@ async function submitOfflineAdmit() {
         } else alert("Failed to admit");
     } catch (e) { }
 }
-
 async function discharge(booking_id, t_id, contact_number) {
     if (!confirm("Discharge patient? This will free up the bed.")) return;
     try {
@@ -180,7 +166,6 @@ async function discharge(booking_id, t_id, contact_number) {
         }
     } catch (e) { console.error(e); }
 }
-
 // FLEET MANAGEMENT
 async function loadFleet() {
     if (!activeAdmin) return;
@@ -203,7 +188,6 @@ async function loadFleet() {
         } else container.innerHTML = `<p style="color:var(--text-muted)">No drivers affiliated yet.</p>`;
     } catch (e) { }
 }
-
 async function searchAndAffiliateDriver() {
     const uid = document.getElementById('search-driver-uid').value;
     if (!uid) return alert('Enter driver UID');
@@ -218,8 +202,6 @@ async function searchAndAffiliateDriver() {
         } else alert(data.detail || "Error");
     } catch (e) { }
 }
-
-
 // MANAGEMENT
 async function loadTreatments() {
     if (!activeAdmin) return;
@@ -249,13 +231,11 @@ async function loadTreatments() {
         }
     } catch (e) { }
 }
-
 async function addTreatment() {
     const name = document.getElementById('treat-name').value;
     const cost = document.getElementById('treat-cost').value;
     const beds = document.getElementById('treat-beds').value;
     if (!name || !cost || !beds) return alert("Fill all treatment fields");
-
     try {
         const res = await fetch('/api/admin/treatments', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -267,7 +247,6 @@ async function addTreatment() {
         } else alert("Failed to add treatment");
     } catch (e) { }
 }
-
 async function updateTreatment(t_id) {
     const cost = document.getElementById(`upd-cost-${t_id}`).value;
     const beds = document.getElementById(`upd-beds-${t_id}`).value;
@@ -282,7 +261,6 @@ async function updateTreatment(t_id) {
         } else alert("Failed to update");
     } catch (e) { }
 }
-
 // ACCOUNT
 function loadAccountSettings() {
     if (!activeAdmin) return;
@@ -291,13 +269,11 @@ function loadAccountSettings() {
     document.getElementById('acc-lat').value = activeAdmin.latitude || '';
     document.getElementById('acc-lon').value = activeAdmin.longitude || '';
 }
-
 async function updateHospitalAccount() {
     const address = document.getElementById('acc-address').value;
     const contact = document.getElementById('acc-contact').value;
     const lat = document.getElementById('acc-lat').value;
     const lon = document.getElementById('acc-lon').value;
-
     try {
         const res = await fetch('/api/admin/profile', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -319,7 +295,6 @@ async function updateHospitalAccount() {
         } else alert(data.detail || "Update failed");
     } catch (e) { }
 }
-
 async function deleteHospitalAccount() {
     if (!confirm("Are you absolutely sure you want to delete this hospital account? This action cannot be undone.")) return;
     try {
