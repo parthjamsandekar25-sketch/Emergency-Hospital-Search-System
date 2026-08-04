@@ -1,0 +1,208 @@
+:root {
+    --bg-main: #F0F4F8;
+    --bg-card: #FFFFFF;
+    --text-primary: #1E293B;
+    --text-muted: #64748b;
+    --border: #E2E8F0;
+    
+    --color-patient: #0077B6;
+    --color-patient-hover: #0096C7;
+    
+    --color-driver: #10B981;
+    --color-driver-hover: #059669;
+    
+    --color-admin: #8B5CF6;
+    --color-admin-hover: #7C3AED;
+
+    --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#app {
+    width: 100%;
+    max-width: 1200px;
+    padding: 2rem;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Role Selector Styles */
+.role-selector-container {
+    text-align: center;
+}
+
+.header-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: inline-block;
+    animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-bottom: 3rem;
+}
+
+.cards-container {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    width: 320px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: transparent;
+}
+
+.card-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-icon {
+    transform: scale(1.1);
+}
+
+.card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.card p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.btn {
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    width: 100%;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-patient { background-color: var(--color-patient); }
+.btn-patient:hover { background-color: var(--color-patient-hover); }
+
+.btn-driver { background-color: var(--color-driver); }
+.btn-driver:hover { background-color: var(--color-driver-hover); }
+
+.btn-admin { background-color: var(--color-admin); }
+.btn-admin:hover { background-color: var(--color-admin-hover); }
+
+/* --- Mobile Responsive Updates --- */
+@media (max-width: 768px) {
+    #app { 
+        padding: 1rem; 
+    }
+    
+    .auth-container { 
+        padding: 1.5rem !important; 
+    }
+    
+    .modal > div { 
+        padding: 1.5rem !important; 
+        width: 95% !important;
+    }
+    
+    .flex-row, .mobile-col { 
+        flex-direction: column !important; 
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+    }
+    
+    .card { 
+        width: 100%; 
+    }
+    
+    .mobile-col button { 
+        width: 100% !important; 
+        margin-top: 0.5rem; 
+    }
+    
+    #srch-treatment, #search-driver-uid { 
+        width: 100% !important; 
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .header-icon {
+        font-size: 3rem;
+    }
+}
+
+.tabs::-webkit-scrollbar { 
+    display: none; 
+}
+.tabs { 
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+}
+
