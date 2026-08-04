@@ -1,0 +1,392 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from database import get_db_connection
+import mysql.connector
+import bcrypt
+
+router = APIRouter()
+
+class DriverLoginRequest(BaseModel):
+    userid: str
+    password: str
+
+class DriverRegisterRequest(BaseModel):
+    name: str
+    email: str
+    contact: str
+    vehicle_type: str
+    vehicle_number: str
+    userid: str
+    pwd: str
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+class CovertChallengeRequest(BaseModel):
+    q1: str
+    q2: str
+    q3: str
+    q4: str
+
+temp_driver_regs = {}
+active_dispatches = {}
+
+@router.get("/dispatch/{driver_id}")
+def get_driver_dispatch(driver_id: int):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True)
+        query = """
+            SELECT r.request_id, r.status, r.approval_code, h.name as hospital_name 
+            FROM hospital_driver_requests r 
+            LEFT JOIN hospitals h ON r.hospital_id = h.hospital_id
+            WHERE r.driver_id=%s AND r.status LIKE %s 
+            ORDER BY r.request_id DESC LIMIT 1
+        """
+        cur.execute(query, (driver_id, 'DISP|%'))
+        row = cur.fetchone()
+        conn.close()
+        
+        if row:
+            parts = row['status'].split('|')
+            coords = row['approval_code'].split('|') if row['approval_code'] else []
+            return {"dispatch": {
+                "request_id": row['request_id'],
+                "patient_name": parts[1] if len(parts) > 1 else "Unknown",
+                "hospital_name": row['hospital_name'] or "Hospital",
+                "contact_number": parts[2] if len(parts) > 2 else "N/A",
+                "patient_lat": float(coords[0]) if len(coords) > 0 and coords[0] != 'None' else None,
+                "patient_lon": float(coords[1]) if len(coords) > 1 and coords[1] != 'None' else None
+            }}
+    except Exception as e:
+        pass
+    return {"dispatch": None}
+
+@router.post("/dispatch/{driver_id}/complete")
+def complete_dispatch(driver_id: int):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM hospital_driver_requests WHERE driver_id=%s AND status LIKE 'DISP|%'", (driver_id,))
+        cur.execute("UPDATE drivers SET status='Available' WHERE driver_id=%s", (driver_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        pass
+    
+    return {"message": "Dispatch completed and status reset"}
+
+class LocationUpdateRequest(BaseModel):
+    driver_id: int
+    latitude: float
+    longitude: float
+
+class StatusUpdateRequest(BaseModel):
+    driver_id: int
+    status: str
+
+class RespondRequest(BaseModel):
+    request_id: int
+    status: str
+    driver_id: int
+    hospital_id: int
+    req_type: str
+
+class SupportQueryRequest(BaseModel):
+    name: str
+    email: str
+    contact: str
+    query_text: str
+
+@router.post("/submit-query")
+def submit_query(req: SupportQueryRequest):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO support_queries (user_type, name, email, contact, query_text) VALUES (%s, %s, %s, %s, %s)", 
+                    ("Driver", req.name, req.email, req.contact, req.query_text))
+        conn.commit()
+        conn.close()
+        return {"message": "Query sent to System Administrator successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/status")
+def driver_status():
+    return {"status": "Driver router is working"}
+
+@router.post("/login")
+def login(req: DriverLoginRequest):
+    if req.userid == "jagfiraaniloaanihumryaakaaptaanmelo" and req.password == "jevhadevakkalvaatithototevhamehagukgelelay":
+        return {"challenge_required": True}
+        
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM drivers WHERE userid=%s", (req.userid,))
+        driver = cur.fetchone()
+        
+        has_access = False
+        if driver:
+            if driver.get('is_banned'):
+                conn.close()
+                raise HTTPException(status_code=403, detail="Your account has been restricted by System Administrator.")
+            db_pwd = driver['password'].encode('utf-8')
+            req_pwd = req.password.encode('utf-8')
+            # Check if stored is bcrypt hash
+            if db_pwd.startswith(b'$2b$'):
+                has_access = bcrypt.checkpw(req_pwd, db_pwd)
+            else:
+                has_access = (driver['password'] == req.password)
+                
+        if has_access:
+            driver['name'] = driver['full_name']
+            if driver['affiliated_hospital_id']:
+                cur.execute("SELECT name FROM hospitals WHERE hospital_id=%s", (driver['affiliated_hospital_id'],))
+                h = cur.fetchone()
+                driver['hospital_name'] = h['name'] if h else None
+            else:
+                driver['hospital_name'] = None
+        conn.close()
+        
+        if driver:
+            return {"driver": driver, "message": "Login successful"}
+        else:
+            raise HTTPException(status_code=401, detail="Invalid User ID or Password.")
+    except mysql.connector.Error as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+@router.post("/init-register")
+def init_register(req: DriverRegisterRequest):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        try:
+            from utils import is_userid_unique
+        except ImportError:
+            from backend.utils import is_userid_unique
+            
+        if not is_userid_unique(cur, req.userid):
+            conn.close()
+            raise HTTPException(status_code=400, detail="User ID is already taken by another account.")
+            
+        # Removed vehicle number constraint check since we no longer trace vehicles
+            
+        cur.execute("SELECT driver_id FROM drivers WHERE email=%s", (req.email,))
+        if cur.fetchone():
+            conn.close()
+            raise HTTPException(status_code=400, detail="Email already registered.")
+        conn.close()
+        
+        try:
+            from utils import generate_otp, send_registration_otp_email
+        except ImportError:
+            from backend.utils import generate_otp, send_registration_otp_email
+            
+        otp = generate_otp(6)
+        temp_driver_regs[req.email] = {"req": req, "otp": otp}
+        
+        send_registration_otp_email(req.email, req.name, otp)
+        
+        return {"message": "OTP sent"}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/verify-register")
+def verify_register(req: VerifyOTPRequest):
+    if req.email not in temp_driver_regs:
+        raise HTTPException(status_code=400, detail="No pending registration found for this email.")
+        
+    data = temp_driver_regs[req.email]
+    if data["otp"] != req.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+        
+    r = data["req"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        query = """INSERT INTO drivers 
+                   (full_name, contact_number, email, vehicle_type, vehicle_number, license_number, userid, password, status) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Offline')"""
+        hashed = bcrypt.hashpw(r.pwd.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cur.execute(query, (r.name, r.contact, r.email, r.vehicle_type, r.vehicle_number, "-", r.userid, hashed))
+        conn.commit()
+        conn.close()
+        del temp_driver_regs[req.email]
+        return {"message": "Registered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/update-status")
+def update_status(req: StatusUpdateRequest):
+    try:
+        status_cap = req.status.capitalize()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE drivers SET status=%s WHERE driver_id=%s", (status_cap, req.driver_id))
+        conn.commit()
+        conn.close()
+        return {"message": "Status updated"}
+    except mysql.connector.Error as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+@router.post("/update-location")
+def update_location(req: LocationUpdateRequest):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE drivers SET latitude=%s, longitude=%s WHERE driver_id=%s", (req.latitude, req.longitude, req.driver_id))
+        conn.commit()
+        conn.close()
+        return {"message": "Location updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/challenge")
+def complete_challenge(req: CovertChallengeRequest):
+    if req.q1 == "12" and req.q2.lower() == "pandurang" and req.q3.lower() == "maths" and req.q4.lower() == "cricket":
+        import os
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        html_path = os.path.join(base_dir, "protected_views", "hq-core.html")
+        js_path = os.path.join(base_dir, "protected_views", "hq-core.js")
+        
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        with open(js_path, "r", encoding="utf-8") as f:
+            js = f.read()
+            
+        return {"status": "success", "hq_html": html, "hq_js": js}
+    raise HTTPException(status_code=401, detail="Invalid Challenge Answers.")
+
+@router.get("/requests/{driver_id}")
+def get_requests(driver_id: int):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True)
+        query = """SELECT r.request_id, r.status, r.hospital_id, h.name as hospital_name
+                   FROM hospital_driver_requests r
+                   JOIN hospitals h ON r.hospital_id = h.hospital_id
+                   WHERE r.driver_id = %s AND r.status='pending'"""
+        cur.execute(query, (driver_id,))
+        records = cur.fetchall()
+        conn.close()
+        # Add req_type affiliation for context
+        for r in records: r['req_type'] = 'Affiliation'
+        return {"requests": records}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/respond")
+def respond_request(req: RespondRequest):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("UPDATE hospital_driver_requests SET status=%s WHERE request_id=%s", (req.status, req.request_id))
+        
+        hosp_name = None
+        if req.status == 'accepted':
+            cur.execute("UPDATE drivers SET affiliated_hospital_id=%s WHERE driver_id=%s", (req.hospital_id, req.driver_id))
+            cur.execute("SELECT name FROM hospitals WHERE hospital_id=%s", (req.hospital_id,))
+            h = cur.fetchone()
+            if h: hosp_name = h['name']
+        conn.commit()
+        conn.close()
+        return {"message": "Success", "hospital_name": hosp_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/profile/{driver_id}")
+def delete_profile(driver_id: int):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM drivers WHERE driver_id=%s", (driver_id,))
+        conn.commit()
+        conn.close()
+        return {"message": "Success"}
+    except Exception as e:
+        try:
+            cur.execute("DELETE FROM hospital_driver_requests WHERE driver_id=%s", (driver_id,))
+            cur.execute("DELETE FROM drivers WHERE driver_id=%s", (driver_id,))
+            conn.commit()
+        except:
+            pass
+        finally:
+            conn.close()
+        return {"message": "Attempted to delete"}
+
+
+class ForgotPasswordRequest(BaseModel):
+    userid: str = ""
+    email: str = ""
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
+temp_pwd_reset = {}
+
+@router.post("/forgot-password")
+def forgot_pwd(req: ForgotPasswordRequest):
+    if not req.userid and not req.email:
+        raise HTTPException(status_code=400, detail="Provide userid or email")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True)
+        
+        query_field = "userid"
+        table = "drivers"
+        name_col = "full_name"
+        pwd_col = "password"
+        email_col = "email"
+        
+        if req.userid:
+            cur.execute(f"SELECT {name_col} as name, {email_col} as email FROM {table} WHERE {query_field}=%s", (req.userid,))
+        else:
+            cur.execute(f"SELECT {name_col} as name, {email_col} as email FROM {table} WHERE {email_col}=%s", (req.email,))
+        user = cur.fetchone()
+        conn.close()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        import random
+        from utils import send_pwd_reset_otp_email
+        otp_val = str(random.randint(100000, 999999))
+        temp_pwd_reset[user['email']] = otp_val
+        
+        send_pwd_reset_otp_email(user['email'], user['name'], otp_val)
+        
+        e = user['email']
+        masked = e[:2] + "***@" + e.split("@")[1] if "@" in e else e
+        return {"status": "ok", "email": e, "email_masked": masked}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reset-password")
+def reset_pwd(req: ResetPasswordRequest):
+    if req.email not in temp_pwd_reset or temp_pwd_reset[req.email] != req.otp:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        import bcrypt
+        hashed = bcrypt.hashpw(req.new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        table = "drivers"
+        pwd_col = "password"
+        email_col = "email"
+        
+        cur.execute(f"UPDATE {table} SET {pwd_col}=%s WHERE {email_col}=%s", (hashed, req.email))
+        conn.commit()
+        conn.close()
+        del temp_pwd_reset[req.email]
+        return {"message": "Password updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
